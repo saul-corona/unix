@@ -72,9 +72,73 @@ const uploadVideo = async (req, res, handleErr) => {
   }
 };
 
+const getVideoAsset = async (req, res, handleErr) => {
+  let file;
+  let mimeType;
+  let filename;
+  const videoId = req.params.get("videoId");
+  const type = req.params.get("type");
+
+  DB.update();
+  const video = DB.videos.find(video => video.videoId === videoId);
+
+  if (!video) {
+    return handleErr({
+      status: 404,
+      message: "Video not found",
+    });
+  }
+
+  switch (type) {
+    case "thumbnail":
+      file = await fs.open(`./storage/${videoId}/thumbnail.jpg`, "r");
+      mimeType = "image/jpeg";
+      break;
+    case "audio":
+      file = await fs.open(`./storage/${videoId}/audio.aac`, "r");
+      mimeType = "audio/aac";
+      filename = `${video.name}-audio.aac`;
+      break;
+    case "resize":
+      const dimensions = req.params.get("dimensions");
+      file = await fs.open(
+        `./storage/${videoId}/${dimensions}.${video.extension}`,
+        "r"
+      );
+      mimeType = "video/mp4"; // Not a good practice! Videos are not always MP4
+      filename = `${video.name}-${dimensions}.${video.extension}`;
+      break;
+    case "original":
+      file = await fs.open(
+        `./storage/${videoId}/original.${video.extension}`,
+        "r"
+      );
+      mimeType = `video/${video.extension}`;
+      filename = `${video.name}.${video.extension}`;
+  }
+
+  const stat = await file.stat();
+
+  const fileStream = file.createReadStream();
+
+  if (type !== "thumbnail") {
+    res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+  }
+
+  res.setHeader("Content-Type", mimeType);
+  res.setHeader("Content-Length", stat.size);
+
+  res.status(200);
+
+  await pipeline(fileStream, res);
+
+  file.close();
+};
+
 const controller = {
   getVideos,
   uploadVideo,
+  getVideoAsset,
 };
 
 module.exports = controller;
