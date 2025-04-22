@@ -65,7 +65,33 @@ const getDimensions = fullPath => {
   });
 };
 
+const extractAudio = (originalVideoPath, targetAudioPath) => {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn("ffmpeg", [
+      "-i",
+      originalVideoPath,
+      "-vn",
+      "-c:a",
+      "copy",
+      targetAudioPath,
+    ]);
+
+    ffmpeg.on("close", code => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(`ffmpeg failed with code ${code}`);
+      }
+    });
+
+    ffmpeg.on("error", error => {
+      reject(error);
+    });
+  });
+};
+
 module.exports = {
   makeThumbnail,
   getDimensions,
+  extractAudio,
 };
