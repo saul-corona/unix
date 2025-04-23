@@ -65,6 +65,32 @@ const getDimensions = fullPath => {
   });
 };
 
+const resize = (originalVideoPath, targetVideoPath, height, width) => {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn("ffmpeg", [
+      "-i",
+      originalVideoPath,
+      "-vf",
+      `scale=${width}:${height}`,
+      "-c:a",
+      "copy",
+      targetVideoPath,
+    ]);
+
+    ffmpeg.on("close", code => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(`ffmpeg failed with code ${code}`);
+      }
+    });
+
+    ffmpeg.on("error", error => {
+      reject(error);
+    });
+  });
+};
+
 const extractAudio = (originalVideoPath, targetAudioPath) => {
   return new Promise((resolve, reject) => {
     const ffmpeg = spawn("ffmpeg", [
@@ -94,4 +120,5 @@ module.exports = {
   makeThumbnail,
   getDimensions,
   extractAudio,
+  resize,
 };

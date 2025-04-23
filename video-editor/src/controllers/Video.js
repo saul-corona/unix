@@ -5,6 +5,9 @@ const { pipeline } = require("node:stream/promises");
 const DB = require("../DB");
 const FF = require("../../lib/FF");
 const util = require("../../lib/util");
+const JobQueue = require("../../lib/JobQueue");
+
+const jobs = new JobQueue();
 
 const getVideos = (req, res, handleErr) => {
   DB.update();
@@ -106,6 +109,32 @@ const extractAudio = async (req, res, handleErr) => {
   }
 };
 
+const resizeVideo = async (req, res, handleErr) => {
+  const videoId = req.body.videoId;
+  const width = Number(req.body.width);
+  const height = Number(req.body.height);
+
+  DB.update();
+
+  const video = DB.videos.find(video => video.videoId === videoId);
+
+  video.resizes[`${width}x${height}`] = { processing: true };
+
+  DB.save();
+
+  jobs.enqueue({
+    type: "resize",
+    videoId,
+    width,
+    height,
+  });
+
+  res.status(200).json({
+    status: "success",
+    message: "The video is being processed!",
+  });
+};
+
 const getVideoAsset = async (req, res, handleErr) => {
   let file;
   let mimeType;
@@ -173,6 +202,7 @@ const controller = {
   getVideos,
   uploadVideo,
   extractAudio,
+  resizeVideo,
   getVideoAsset,
 };
 
