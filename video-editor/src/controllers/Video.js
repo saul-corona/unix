@@ -113,12 +113,20 @@ const resizeVideo = async (req, res, handleErr) => {
   const videoId = req.body.videoId;
   const width = Number(req.body.width);
   const height = Number(req.body.height);
+  const dimensions = `${width}x${height}`;
 
   DB.update();
 
   const video = DB.videos.find(video => video.videoId === videoId);
 
-  video.resizes[`${width}x${height}`] = { processing: true };
+  if (video.resizes[dimensions]) {
+    return handleErr({
+      status: 400,
+      message: "Also exists a processing for this resolution",
+    });
+  }
+
+  video.resizes[dimensions] = { processing: true };
 
   DB.save();
 
