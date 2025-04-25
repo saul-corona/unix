@@ -1,4 +1,5 @@
 const path = require("node:path");
+const cluster = require("node:cluster");
 const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const { pipeline } = require("node:stream/promises");
@@ -7,7 +8,10 @@ const FF = require("../../lib/FF");
 const util = require("../../lib/util");
 const JobQueue = require("../../lib/JobQueue");
 
-const jobs = new JobQueue();
+let jobs;
+if (cluster.isPrimary) {
+  jobs = new JobQueue();
+}
 
 const getVideos = (req, res, handleErr) => {
   DB.update();
@@ -130,12 +134,23 @@ const resizeVideo = async (req, res, handleErr) => {
 
   DB.save();
 
-  jobs.enqueue({
-    type: "resize",
-    videoId,
-    width,
-    height,
-  });
+  if (cluster.isPrimary) {
+    jobs.enqueue({
+      type: "resize",
+      videoId,
+      width,
+      height,
+    });
+  } else {
+    process.send({
+      messageType: "new-resize",
+      data: {
+        videoId,
+        width,
+        height,
+      },
+    });
+  }
 
   res.status(200).json({
     status: "success",
